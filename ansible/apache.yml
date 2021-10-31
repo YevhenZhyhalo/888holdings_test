@@ -1,8 +1,37 @@
 ---
-- hosts: centos_servers:ubuntu_servers
+- name: Apache instalation
+  hosts: ubuntu:centos
+  vars:
+    port: 8080
   tasks:
-  - name: Apache Instalation
+  - name: Ubuntu apache
+    when: inventory_hostname in groups ['ubuntu']
+    become: yes
+    apt:
+      name: apache2
+      state: present
+      update_cache: yes
+    
+  - name: Centos apache
+    when: inventory_hostname in groups ['centos']
     become: yes
     package:
       name:  httpd
-      state: latest
+      state: present
+
+  - name: Change port( Ubuntu)
+    when: inventory_hostname in groups ['ubuntu']
+    become: yes
+    template: src=templates/apache.j2 dest=/etc/apache2/ports.conf
+
+  - name: Change port( Centos)
+    when: inventory_hostname in groups ['centos']
+    become: yes
+    template: src=templates/apache.j2 dest=/etc/httpd/ports.conf
+
+  - name: Restart service 
+    become: yes
+      name: httpd
+      state: restarted
+  
+    

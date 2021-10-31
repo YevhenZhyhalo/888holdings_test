@@ -1,15 +1,78 @@
-# Basic provisioning example
-- name: Ansible test
+---  
+- name: Create Centos and Ubuntu host
   hosts: localhost
+  vars:
+    region: us-west-2
+    keyname: inventory_key
+    instance_type: t2.micro
+    ubuntu_image: ami-090717c950a5c34d3
+    centos_image: ami-013a129d325529d4d
+    sg: sg_holdings888
   tasks:
-  - name: launching AWS instance using Ansible
-    ec2:
-      key_name: aws_instance_Ansible
-      instance_type: t2.micro
-      image: ami-03d5c68bab01f3496
-      region: us-west-2
-      wait: yes
-      group: Ansible
-      count: 1
-      vpc_subnet_id: default
-      assign_public_ip: yes
+  - name: create inventory_key
+    tags:  "{{ keyname }}"    
+    ec2_key:  
+      region: "{{ region }}"  
+      name: "{{ keyname }}"      
+    register: i_key 
+
+  - name: write the private key to file
+    copy: content="{{ i_key.key.private_key }}" dest="~/.ssh/{{ keyname }}.pem" mode=0600
+    when: i_key.changed
+
+  - name: create security group  
+    tags: sg
+    ec2_group:    
+      region: "{{ region }}"
+      name: "{{sg}}" 
+      description: security group for virginia webserver host
+      rules:
+        - proto: tcp  
+          from_port: 22  
+          to_port: 22  
+          cidr_ip: 0.0.0.0/0
+        - proto: tcp  
+          from_port: 80    
+          to_port: 80    
+          cidr_ip: 0.0.0.0/0    
+        - proto: tcp  
+          from_port: 8080    
+          to_port: 8080    
+          cidr_ip: 0.0.0.0/0
+      rules_egress:  
+        - proto: all  
+          cidr_ip: 0.0.0.0/0    
+
+  - name: deploy ubuntu
+    tags: ec2
+#    async: 10
+#    poll: 0
+    local_action:  
+      module: ec2  
+      region: "{{ region }}"  
+      key_name: "{{ keyname }}"
+      instance_type: "{{ instance_type }}"    
+      image: "{{ ubuntu_image }}"  
+      wait: yes    
+      group: "{{sg}}" 
+      instance_tags:  
+        Name: ubuntu 
+        class: ubuntu_webserver
+    register: ec2    
+
+  - name: deploy centos
+    tags: ec2
+#    async: 10
+#    poll: 0
+    local_action:  
+      module: ec2  
+      region: "{{ region }}"  
+      key_name: "{{ keyname }}"
+      instance_type: "{{ instance_type }}"    
+      image: "{{ centos_image }}"  
+      wait: yes    
+      group: "{{sg}}" 
+      instance_tags:  
+        Name: centos
+        class: centos_webserver
+    register: ec2  
