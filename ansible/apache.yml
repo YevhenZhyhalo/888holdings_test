@@ -1,0 +1,8 @@
+---
+- hosts: centos_servers:ubuntu_servers
+  tasks:
+  - name: Apache Instalation
+    become: yes
+    package:
+      name:  httpd
+      state: latest
